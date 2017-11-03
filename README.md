@@ -71,7 +71,23 @@ We will, of course, skip the Conventions sub-chapter, and go directly to the las
 >Each section consists of
 >
 >*a one-byte section id,
+>
 >*the u32 size of the contents, in bytes,
+>
 >*the actual contents, whose structure is depended on the section id.
+
+ok, easy. We then have a table of the section Id's, with a 0 Id-ed "custom" section (which we apparently can ignore), and eleven sections. We have nine mandatory records in the module, one having two corresponding sections, plus the opional "start" section. Eleven section. Everything is here, we should soon be able to write some code. Or opcodes. Bytes.
+
+Binary formats often have headers and footers. It is a bit unexpected that we directly ran into the Sections. Looking at the index, we see that the last sub-chapter is about... modules !
+
+The introduction text makes things easy to understand, and using the [binary grammar](https://webassembly.github.io/spec/binary/conventions.html#grammar) we are told how a module is made from bytes !
+
+It starts with `0x00 0x61 0x73 0x6D 0x01 0x00 0x00 0x00` (module version 1) and have sections that all can be empty (but still present) and no footer.
+
+So we basically may have succeed writing our unpopulated module !
+```
+0x00 0x61 0x73 0x6D             # Magic number, indicates this is a WebAssembly module
+0x01 0x00 0x00 0x00             # Version 1 of the WebAssembly binary format
+```
 
 
