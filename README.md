@@ -195,3 +195,44 @@ This works. If we replace the last `0x01` (size of the section) with `0x02`, we 
 >`CompileError: at offset 10: failed to start export section`
 
 So far, so good !
+
+## Adding the Type Section
+
+Section7 (function exports) uses a funcidx, hence needs a function section.
+
+Section3 (function section) just contains a vector of typeidx, hence needs type section.
+
+Section1 (type section) contains a vector of functype's. And functype is rather easy now that we got used to the sepecification and its grammar :
+>functype::=0x60  t∗1:vec(valtype)  t∗2:vec(valtype)⇒[t∗1]→[t∗2]
+
+It's a 0x60 followed by two vectors of valtype describing the type of parameters and return type. We need no parameter (vector of size 0, just a `0x00`) and will return an `i32` (we will just return `42` instead of `"Hello, World!"` for now). The `valtype` for i32's is 0x7F, so Section1 should look like this:
+```
+//typesec (section1(vec(export)))
+	0x01 //sectionId 1
+	0x05 //size 5 (number of bytes in the content of the section)
+	//content of the section (vect(export))
+		0x01 //size of the vector only one function
+			0x60 //header
+		  0x00 //t1, zero-length vector because we need no parameter for foo()
+		  0x01 0x7F //t2, return type is an array of length1 containg id of i32
+```
+
+The section 1 must be before section 7 in the module, so we can test this :
+
+```JavaScript
+var moduleBytes = new Uint8Array([
+	0x00, 0x61, 0x73, 0x6D, //magic nuber
+	0x01, 0x00, 0x00, 0x00, //binary format version 1
+	//section 1
+  0x01, 0x05, //sectionId 1, 5 bytes
+		0x01, //vector of size 1, only one function type defined
+			0x60, //header for function types
+			0x00, //t1, zero-length vector because we need no parameter for foo()
+			0x01, 0x7F, //t2, return type is an array of length 1 containg id of i32
+	//section 7
+	0x07, 0x01, //sectionId 7, 1 byte
+	  0x00 //empty vector as content
+])
+var myModule = new WebAssembly.Module(moduleBytes)
+```
+This runs without error, and is more readable than earlier presentation :)
