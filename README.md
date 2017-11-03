@@ -25,7 +25,7 @@ Developers should be proud of their traditions and history. After reading https:
 Let's read the documentation, skipping any part that does not answer to an actual question I have. My first question is "how do I send some webassembly code to the browser" ?
 
 The answer should be in the MDN documentation. The second object in the documentation is WebAssembly.Module and and it is said to contain the "stateless WebAssembly code". Sounds good. Let's see how to get an instance of it. The first parameter of the constructor is :
->bufferSource
+>`bufferSource`
 >    A typed array or ArrayBuffer containing the binary code of the .wasm module you want to compile. 
 
 
