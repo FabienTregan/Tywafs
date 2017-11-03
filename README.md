@@ -38,4 +38,19 @@ Now how to make one ? Just after the first paragph, there is a block of text sta
 Since we want to start, let's have a look at this `start` : 
 >The start component of a module optionally declares the function index of a start function that is automatically invoked when the module is instantiated, after tables and memories have been initialized.
 
-Ok, so we will need to have a function probably in the `funcs` part of the module, and if we want a start we will need to know its index, of which the value will be assigned to `start`. 
+Ok, we are probably in the right place. We know we have to make a module with at least those parts :
+*types vec(functype)
+*funcs vec(func)
+*tables vec(table)
+*mems vec(mem)
+*globals vec(global)
+*elem vec(elem)
+*data vec(data)
+*imports vec(import)
+*exports vec(export)
+
+## Building an unpopulated module.
+
+We could now try to make a `func`, then build a `funcs` 'vec' (probably a vector ?) from it, and carry on until all the content of a `module` is ready, or we can go the other way around : start making a module then populate it. Let's try the later.
+
+The `modules` page of the specification tells me what, from a logical point of view, is inside a module, but not how to build a module and actually get the .wasm file I need to give to the WebAssembly API in the browser. 
