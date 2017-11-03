@@ -1,4 +1,4 @@
-# Tywafs
+﻿# Tywafs
 Teach Yourself Web Assembly From Specification
 
 ## Why ?
@@ -93,17 +93,19 @@ So we basically may have succeed writing our unpopulated module !
 ## Populating the module with empty sections
 
 Since we need all the (non custom) sections to be present once, let's start with the first one : `typesec`, which contains any quantity of `functype`. This quantity will be zero for now, making things easyer. clicking on "typesec" we reach it's definition. It has the Id 1 and decodes into a vector of function types :
->`typesec::=ft?:section1(vec(functype))?ft?`
+>`typesec::=ft∗:section1(vec(functype))⇒ft∗`
 From the binary grammar in the convention chapter, we have :
 >x:B denotes the same language as the nonterminal B, but also binds the variable x to the attribute synthesized for B.
 and :
->Productions are written sym::=B1?A1 | � | Bn?An, where each Ai is the attribute that is synthesized for sym in the given case, usually from attribute variables bound in Bi.
+>Productions are written sym::=B1⇒A1 | … | Bn⇒An, where each Ai is the attribute that is synthesized for sym in the given case, usually from attribute variables bound in Bi.
 What does that mean ? That typesec will be made of `ft*`, and that what we name `ft*` is `section1(vec(functype))`, probably a `section1` containing an array of `functype`
 
 We already hade a look at the specification where it defines [`section1`](https://webassembly.github.io/spec/binary/modules.html#sections) :
 ```
 sectionN(B)::=
-	N:byte  size:u32  cont:B?cont (ifsize=||B||)
-	|???
+	N:byte  size:u32  cont:B⇒cont (ifsize=||B||)
+	|ϵ⇒ϵ
 ```
 The second alternative means that if `B` is empty, then `sectionN` is just empty. Great, nothing to do !
+
+
