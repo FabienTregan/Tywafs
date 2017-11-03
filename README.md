@@ -100,5 +100,13 @@ and :
 >Productions are written sym::=B1?A1 | … | Bn?An, where each Ai is the attribute that is synthesized for sym in the given case, usually from attribute variables bound in Bi.
 What does that mean ? That typesec will be made of `ft*`, and that what we name `ft*` is `section1(vec(functype))`, probably a `section1` containing an array of `functype`
 
-We already hade a look at the specification where it defines [`section1`](https://webassembly.github.io/spec/binary/modules.html#sections) : 
+We already hade a look at the specification where it defines [`section1`](https://webassembly.github.io/spec/binary/modules.html#sections) :
+>```
+sectionN(B)::=
+	N:byte  size:u32  cont:B?cont (ifsize=||B||)
+	|???
+```
+The second alternative means that if `B` is empty, then `sectionN` is just empty. Great, nothing to do !
+
+>
 
