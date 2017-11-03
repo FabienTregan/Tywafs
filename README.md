@@ -108,4 +108,21 @@ sectionN(B)::=
 ```
 The second alternative means that if `B` is empty, then `sectionN` is just empty. Great, nothing to do !
 
+Now all the sections that only contains a vector can be empty, which are they ? All but `start`, which is optional. So our module should already be valid !
+
+Can we test it ? We should just need to put our byte sequence into a file and load it using the API.
+
+## Writing our first module file
+
+According to the API, we should be able to instanciate a module from a TypedArray, let's try this in the JS console in FireFox :
+
+```JavaScript
+var moduleBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00])
+var myModule = new WebAssembly.Module(moduleBytes);
+```
+It works !! Does it really ? Try changing the version number from 0x01 to 0x02 and see if you still can instantiate a WebAssembly.Module : 
+>`CompileError: at offset 8: binary version 0x2 does not match expected version 0x1`
+
+:)
+
 
