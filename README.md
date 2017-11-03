@@ -101,7 +101,7 @@ and :
 What does that mean ? That typesec will be made of `ft*`, and that what we name `ft*` is `section1(vec(functype))`, probably a `section1` containing an array of `functype`
 
 We already hade a look at the specification where it defines [`section1`](https://webassembly.github.io/spec/binary/modules.html#sections) :
->```
+```
 sectionN(B)::=
 	N:byte  size:u32  cont:B?cont (ifsize=||B||)
 	|???
