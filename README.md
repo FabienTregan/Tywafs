@@ -26,6 +26,7 @@ Let's read the documentation, skipping any part that does not answer to an actua
 
 The answer should be in the MDN documentation. The second object in the documentation is WebAssembly.Module and and it is said to contain the "stateless WebAssembly code". Sounds good. Let's see how to get an instance of it. The first parameter of the constructor is :
 >`bufferSource`
+>
 >    A typed array or ArrayBuffer containing the binary code of the .wasm module you want to compile. 
 
 
@@ -58,6 +59,19 @@ The `modules` page of the specification tells me what, from a logical point of v
 Looking at the index on the right side, we see two top level chapter which are "Binary Format" and "Text Format". Having a look at the "Text Format", going to the part dedicated to "Modules", it describes, as expected, a text format to describe a module.
 
 But remember what we have in the API:
->bufferSource
+>`bufferSource`
 >
->    A typed array or ArrayBuffer containing the binary code of the .wasm module you want to compile.  
+>    A typed array or ArrayBuffer containing the binary code of the .wasm module you want to compile.
+It does not expect a text representation. Searching for "text" in this page gives no result, so I probably need to either have a look at the binary format, or find a tool to convert from text to binary format (which hopefully should be called an Assembler ?)
+
+The second option seems the abvious one. But finding and installing the assembler won't be fun. I will probably need to compile it and, since I boot my computer under Windows this morning, I will probably need to install a toolchain before I can compile the assembler. It seems that for now at least, I will have more fun looking at the [Binary Format](https://webassembly.github.io/spec/binary/index.html).
+
+We will, of course, skip the Conventions sub-chapter, and go directly to the last chapter : "[Modules](https://webassembly.github.io/spec/binary/modules.html)". The short text introduction is interesting : we basically will need to write one "section" for each record of a module, except for the "function" record that is split in two sections. We skip all the Indices part for now, and go to Sections :
+
+>Each section consists of
+>
+>*a one-byte section id,
+>*the u32 size of the contents, in bytes,
+>*the actual contents, whose structure is depended on the section id.
+
+
