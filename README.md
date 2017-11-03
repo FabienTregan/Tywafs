@@ -191,3 +191,7 @@ We can make a simpler exportsec by puting a 0-length vector as the content of th
 var moduleBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x07, 0x01, 0x00])
 var myModule = new WebAssembly.Module(moduleBytes);
 ```
+This works. If we replace the last `0x01` (size of the section) with `0x02`, we get:
+>`CompileError: at offset 10: failed to start export section`
+
+So far, so good !
