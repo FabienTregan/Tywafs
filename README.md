@@ -53,4 +53,11 @@ Ok, we are probably in the right place. We know we have to make a module with at
 
 We could now try to make a `func`, then build a `funcs` 'vec' (probably a vector ?) from it, and carry on until all the content of a `module` is ready, or we can go the other way around : start making a module then populate it. Let's try the later.
 
-The `modules` page of the specification tells me what, from a logical point of view, is inside a module, but not how to build a module and actually get the .wasm file I need to give to the WebAssembly API in the browser. 
+The `modules` page of the specification tells me what, from a logical point of view, is inside a module, but not how to build a module and actually get the .wasm file we need to give to the WebAssembly API in the browser.
+
+Looking at the index on the right side, we see two top level chapter which are "Binary Format" and "Text Format". Having a look at the "Text Format", going to the part dedicated to "Modules", it describes, as expected, a text format to describe a module.
+
+But remember what we have in the API:
+>bufferSource
+>
+>    A typed array or ArrayBuffer containing the binary code of the .wasm module you want to compile.  
