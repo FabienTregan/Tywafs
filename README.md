@@ -221,7 +221,7 @@ The section 1 must be before section 7 in the module, so we can test this :
 
 ```JavaScript
 var moduleBytes = new Uint8Array([
-	0x00, 0x61, 0x73, 0x6D, //magic nuber
+	0x00, 0x61, 0x73, 0x6D, //magic number
 	0x01, 0x00, 0x00, 0x00, //binary format version 1
 	//section 1
   0x01, 0x05, //sectionId 1, 5 bytes
@@ -236,3 +236,98 @@ var moduleBytes = new Uint8Array([
 var myModule = new WebAssembly.Module(moduleBytes)
 ```
 This runs without error, and is more readable than earlier presentation :)
+
+## Adding the Function Section
+
+Now that we have defined the type of the foo() function, we can define the function itself.
+We now have all the training we need to implement this specification :
+>`funcsec::=x∗:section3(vec(typeidx))⇒x∗`
+
+Our implementation should be :
+```
+0x03 //section3
+   0x02 // size 2
+   0x01 0x00 // vector of size 1, with one typeId equal to 0
+```
+Our function seems to be defined, but we still have no code for it...
+The specification of the function section tells us why:
+>The locals and body fields of the respective functions are encoded separately in the code section.
+
+We know what we have to do next :)
+
+## the Code Section
+
+We know should be able to read the [specification](https://webassembly.github.io/spec/binary/modules.html#code-section) of the code section.
+It's a section with number 10, containing a vector of code.
+
+A `code` is the size of a `func` followed by the `func`,
+which is a `vector` of `local`s followed by an `expression`.
+
+Local's are u32 values followed by a valtype, but we may not need locals for now.
+The [structure / modules / function](https://webassembly.github.io/spec/syntax/modules.html#syntax-func)
+part of the docs tells us that :
+>The locals declare a vector of mutable local variables and their types. These variables are referenced through local indices in the function’s body. The index of the first local is the smallest index not referencing a parameter.
+
+We want to return 42 for now, but it's a constant, we may not need locals yet.
+
+Now we need to write the `expression` part. It's nice how we just have to clicking
+on the word "exp" on the documentation to be presented with the list of
+[numeric expressions](https://webassembly.github.io/spec/binary/instructions.html#binary-expr)
+
+We should now read the documentation of every instruction, but we are lucky
+because the first one is 0x41 and defines an i32 constant. 42 is still smaller
+than 128, so we once again don't have to look at the LEB128 documentation
+and can define our constant : `0x41 42`. I could not understand if I need some
+opcode to return the constant, so I'll just try.
+
+## puting it all together
+
+We now should be able to update our section7 (export session) with the function Id
+and the name of the function and the section10 (code)
+
+```JavaScript
+var moduleBytes = new Uint8Array([
+	0x00, 0x61, 0x73, 0x6D, // magic number
+	0x01, 0x00, 0x00, 0x00, // binary format version 1
+
+  // Type Section
+	0x01, 0x05, // sectionId 1, 5 bytes
+		0x01, // vector of size 1, only one function type defined
+			0x60, // header for function types
+			0x00, // t1, zero-length vector because we need no parameter for foo()
+			0x01, 0x7F, // t2, return type is an array of length 1 containg id of i32
+
+  // Function Section
+	0x03, 0x02, // sectionId 3, 2 bytes
+	   0x01, 0x00, // vector of size 1, with one typeId equal to 0
+
+  // Export Section
+	0x07, 0x07, // sectionId 7, 7 bytes
+			0x01, // content is vector of size 1
+			// export
+				// nm:name (which is a vect(byte))
+					0x03, // size 3
+					102, 111, 111, // UTF8 for "foo"
+				// d:exportdesc
+					0x0, // it is a function
+					0x0, // funcidx of the first function in function section (if we have no import)		
+
+// Code Section
+	0x0a, 0x06, // sectionId 10, size 10
+	  0x01, // vector of 1, implementation for one function (foo())
+	    0x04, // size 4
+	      0x00, // vector size 0 of locals
+	      0x41, 42, // const 42
+				0x0B // end function
+])
+var myModule = new WebAssembly.Module(moduleBytes)
+```
+
+Now that the module is ready, we just need to get a new instance and call
+the exported function:
+```JavaScript
+var myInstance = new WebAssembly.Instance(wasmModule, {})
+myInstance.exports.foo()
+```
+
+Running this code in the console shows... 42 \o/
