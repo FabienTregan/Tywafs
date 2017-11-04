@@ -62,19 +62,16 @@ Looking at the index on the right side, we see two top level chapter which are "
 But remember what we have in the API:
 >`bufferSource`
 >
->    A typed array or ArrayBuffer containing the binary code of the .wasm module you want to compile.
+>A typed array or ArrayBuffer containing the binary code of the .wasm module you want to compile.
 It does not expect a text representation. Searching for "text" in this page gives no result, so I probably need to either have a look at the binary format, or find a tool to convert from text to binary format (which hopefully should be called an Assembler ?)
 
 The second option seems the abvious one. But finding and installing the assembler won't be fun. I will probably need to compile it and, since I boot my computer under Windows this morning, I will probably need to install a toolchain before I can compile the assembler. It seems that for now at least, I will have more fun looking at the [Binary Format](https://webassembly.github.io/spec/binary/index.html).
 
 We will, of course, skip the Conventions sub-chapter, and go directly to the last chapter : "[Modules](https://webassembly.github.io/spec/binary/modules.html)". The short text introduction is interesting : we basically will need to write one "section" for each record of a module, except for the "function" record that is split in two sections. We skip all the Indices part for now, and go to Sections :
 
->Each section consists of
->
+>Each section consists of:
 >* a one-byte section id,
->
 >* the u32 size of the contents, in bytes,
->
 >* the actual contents, whose structure is depended on the section id.
 
 ok, easy. We then have a table of the section Id's, with a 0 Id-ed "custom" section (which we apparently can ignore), and eleven sections. We have nine mandatory records in the module, one having two corresponding sections, plus the opional "start" section. Eleven section. Everything is here, we should soon be able to write some code. Or opcodes. Bytes.
@@ -86,9 +83,9 @@ The introduction text makes things easy to understand, and using the [binary gra
 It starts with `0x00 0x61 0x73 0x6D 0x01 0x00 0x00 0x00` (module version 1) and have sections that all can be empty (but still present) and no footer.
 
 So we basically may have succeed writing our unpopulated module !
-```
-0x00 0x61 0x73 0x6D             # Magic number, indicates this is a WebAssembly module
-0x01 0x00 0x00 0x00             # Version 1 of the WebAssembly binary format
+```JavaScript
+0x00, 0x61, 0x73, 0x6D, // Magic number, indicates this is a WebAssembly module
+0x01, 0x00, 0x00, 0x00, // Version 1 of the WebAssembly binary format
 ```
 
 ## Populating the module with empty sections
@@ -104,8 +101,8 @@ What does that mean ? That typesec will be made of `section1(vec(functype))` (pr
 We already hade a look at the specification where it defines [`section1`](https://webassembly.github.io/spec/binary/modules.html#sections) :
 ```
 sectionN(B)::=
-	N:byte  size:u32  cont:B⇒cont
-	|ϵ⇒ϵ
+   N:byte  size:u32  cont:B⇒cont
+  |ϵ⇒ϵ
 ```
 The second alternative means that if `B` is empty, then `sectionN` is just empty. Great, nothing to do !
 
@@ -136,14 +133,17 @@ By looking at the JS API, it seems that we need to export something in order to 
 >Given a `Module`, returns an array containing descriptions of all the declared exports.
 
 Then we probably need to have something in the `Export` section, defined as this :
+
 ```
 exportsec  ::= ex*:section7(vec(export)) ⇒ ex*
 export ::= nm:name d:exportdesc  ⇒ {name nm,desc d}
-exportdesc ::= 0x00 x:funcidx  ⇒ func x
-	|0x01 x:tableidx ⇒ table x
-	|0x02 x:nameidx  ⇒ name x
-	|0x03 x:memidx ⇒ memid x
+exportdesc ::=
+   0x00 x:funcidx  ⇒ func x
+  |0x01 x:tableidx ⇒ table x
+  |0x02 x:nameidx  ⇒ name x
+  |0x03 x:memidx ⇒ memid x
 ```
+
 So we want a not empty section, containing a vector of exports, the export seems to be a succession of a name and an `exportdesc`, which is a function, table, name, or memory ID.
 
 We want our JS to call one of our functions, so we need a funicdx which is a `u32` (unsigned 32bit). And digging the specification in /Structure/Modules/Indices, we find :
@@ -166,27 +166,25 @@ Let's see how to encode names in the spec [binary format / values / name](https:
 
 Easy ?
 
-We can decide our function to be names "foo" (`[102,111,111]` in UTF8), which is hasa length of 3, and voila! only terminal symbols (it mean we no longer have to digg, we can climb up now)
-```
-//exportsec (section7(vec(export)))
-	7 //sectionId 7 (export section)
-	7 //size 7 (number of bytes in the content of the section)
-	//content of the section (vect(export))
-	1 //size 1
-	//export
-		//nm:name (which is a vect(byte))
-			3 //size 3
-			102, 111, 111 //UTF8 for "foo"
-		//d:exportdesc
-			0 //it is a function
-			0 //funcidx of the first function in function section (if we have no import)
+We can decide our function to be named "foo" (`[102,111,111]` in UTF8), which is hasa length of 3, and voila! only terminal symbols (it mean we no longer have to digg, we can climb up now)
+```JavaScript
+// Export Section
+0x07, 0x07, // sectionId 7, 7 bytes
+    0x01, // content is vector of size 1
+    // export
+      // nm:name (which is a vect(byte))
+      0x03, // 3 bytes
+      102, 111, 111, // UTF8 for "foo"
+      // d:exportdesc
+      0x0, // it is a function
+      0x0, // funcidx of the first function in function section (if we have no import)    
 ```
 
 Ok, this might work. But we can not test for now because we do not have the function section but we use a funcidx.
 
 You might have noticed that the u32's have been encoded as a single byte instead of the abvious 4. We'll come back to this later, but the spec in [binary format / values / integer](https://webassembly.github.io/spec/binary/values.html#integers) tells us that they are encoded in [LEB128](https://en.wikipedia.org/wiki/LEB128). All you need to know for now is that u32 smaller than 128 will be encoded in just one byte, saving space.
 
-We can make a simpler exportsec by puting a 0-length vector as the content of the section, dodging the need for the function section for now. I will let you do this as an exercice, but once you add the section to the javascript array we made earlier, you should find this:
+We can make a simpler exportsec by puting a 0-length vector as the content of the section, dodging the need for the function section for now. I will let you do this as an exercice, but once you add the section to the javascript array we made earlier, you may find this:
 ```JavaScript
 var moduleBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x07, 0x01, 0x00])
 var myModule = new WebAssembly.Module(moduleBytes);
@@ -203,35 +201,35 @@ Section7 (function exports) uses a funcidx, hence needs a function section.
 Section3 (function section) just contains a vector of typeidx, hence needs type section.
 
 Section1 (type section) contains a vector of functype's. And functype is rather easy now that we got used to the sepecification and its grammar :
->functype::=0x60  t∗1:vec(valtype)  t∗2:vec(valtype)⇒[t∗1]→[t∗2]
+>`functype::=0x60  t∗1:vec(valtype)  t∗2:vec(valtype)⇒[t∗1]→[t∗2]`
 
 It's a 0x60 followed by two vectors of valtype describing the type of parameters and return type. We need no parameter (vector of size 0, just a `0x00`) and will return an `i32` (we will just return `42` instead of `"Hello, World!"` for now). The `valtype` for i32's is 0x7F, so Section1 should look like this:
-```
-//typesec (section1(vec(export)))
-	0x01 //sectionId 1
-	0x05 //size 5 (number of bytes in the content of the section)
-	//content of the section (vect(export))
-		0x01 //size of the vector only one function
-			0x60 //header
-		  0x00 //t1, zero-length vector because we need no parameter for foo()
-		  0x01 0x7F //t2, return type is an array of length1 containg id of i32
+```JavaScript
+// Type Section
+0x01, 0x05, // sectionId 1, 5 bytes
+  0x01, // vector of size 1, only one function type defined
+    0x60, // header for function types
+    0x00, // t1, zero-length vector because we need no parameter for foo()
+    0x01, 0x7F, // t2, return type is an array of length 1 containg id of i32
 ```
 
 The section 1 must be before section 7 in the module, so we can test this :
 
 ```JavaScript
 var moduleBytes = new Uint8Array([
-	0x00, 0x61, 0x73, 0x6D, //magic number
-	0x01, 0x00, 0x00, 0x00, //binary format version 1
-	//section 1
-  0x01, 0x05, //sectionId 1, 5 bytes
-		0x01, //vector of size 1, only one function type defined
-			0x60, //header for function types
-			0x00, //t1, zero-length vector because we need no parameter for foo()
-			0x01, 0x7F, //t2, return type is an array of length 1 containg id of i32
-	//section 7
-	0x07, 0x01, //sectionId 7, 1 byte
-	  0x00 //empty vector as content
+  0x00, 0x61, 0x73, 0x6D, // magic number
+  0x01, 0x00, 0x00, 0x00, // binary format version 1
+
+  // Type Section
+  0x01, 0x05, // sectionId 1, 5 bytes
+    0x01, // vector of size 1, only one function type defined
+      0x60, // header for function types
+      0x00, // t1, zero-length vector because we need no parameter for foo()
+      0x01, 0x7F, // t2, return type is an array of length 1 containg id of i32
+
+  // Export Section
+  0x07, 0x07, // sectionId 7, 7 bytes
+    0x00 //empty vector as content
 ])
 var myModule = new WebAssembly.Module(moduleBytes)
 ```
@@ -243,11 +241,11 @@ Now that we have defined the type of the foo() function, we can define the funct
 We now have all the training we need to implement this specification :
 >`funcsec::=x∗:section3(vec(typeidx))⇒x∗`
 
-Our implementation should be :
-```
-0x03 //section3
-   0x02 // size 2
-   0x01 0x00 // vector of size 1, with one typeId equal to 0
+Our implementation might be :
+```JavaScript
+// Function Section
+0x03, 0x02, // sectionId 3, 2 bytes
+  0x01, 0x00, // vector of size 1, with one typeId equal to 0
 ```
 Our function seems to be defined, but we still have no code for it...
 The specification of the function section tells us why:
@@ -287,38 +285,42 @@ and the name of the function and the section10 (code)
 
 ```JavaScript
 var moduleBytes = new Uint8Array([
-	0x00, 0x61, 0x73, 0x6D, // magic number
-	0x01, 0x00, 0x00, 0x00, // binary format version 1
+  0x00, 0x61, 0x73, 0x6D, // magic number
+  0x01, 0x00, 0x00, 0x00, // binary format version 1
 
   // Type Section
-	0x01, 0x05, // sectionId 1, 5 bytes
-		0x01, // vector of size 1, only one function type defined
-			0x60, // header for function types
-			0x00, // t1, zero-length vector because we need no parameter for foo()
-			0x01, 0x7F, // t2, return type is an array of length 1 containg id of i32
+  0x01, 0x05, // sectionId 1, 5 bytes
+    0x01, // vector of size 1, only one function type defined
+      0x60, // header for function types
+      0x00, // t1, zero-length vector because we need no parameter for foo()
+      0x01, 0x7F, // t2, return type is an array of length 1 containg id of i32
 
   // Function Section
-	0x03, 0x02, // sectionId 3, 2 bytes
-	   0x01, 0x00, // vector of size 1, with one typeId equal to 0
+  0x03, 0x02, // sectionId 3, 2 bytes
+    0x01, 0x00, // vector of size 1, with one typeId equal to 0
 
   // Export Section
-	0x07, 0x07, // sectionId 7, 7 bytes
-			0x01, // content is vector of size 1
-			// export
-				// nm:name (which is a vect(byte))
-					0x03, // size 3
-					102, 111, 111, // UTF8 for "foo"
-				// d:exportdesc
-					0x0, // it is a function
-					0x0, // funcidx of the first function in function section (if we have no import)		
+  0x07, 0x07, // sectionId 7, 7 bytes
+    0x01, // content is vector of size 1
+      // export
+        // nm:name (which is a vect(byte))
+        0x03, // 3 bytes
+        102, 111, 111, // UTF8 for "foo"
+        // d:exportdesc
+        0x0, // it is a function
+        0x0, // funcidx of the first function in function section (if we have no import)    
 
-// Code Section
-	0x0a, 0x06, // sectionId 10, size 10
-	  0x01, // vector of 1, implementation for one function (foo())
-	    0x04, // size 4
-	      0x00, // vector size 0 of locals
-	      0x41, 42, // const 42
-				0x0B // end function
+  // Code Section
+  0x0a, 0x06, // sectionId 10, 6 bytes
+    0x01, // vector of 1 code (the implementation for foo() )
+      //code
+      0x04, // 4 bytes
+        // func
+          //locals
+          0x00, // vector size 0
+          //expr
+          0x41, 42, // opcode for "const 42"
+          0x0b // footer for expr
 ])
 var myModule = new WebAssembly.Module(moduleBytes)
 ```
@@ -326,8 +328,27 @@ var myModule = new WebAssembly.Module(moduleBytes)
 Now that the module is ready, we just need to get a new instance and call
 the exported function:
 ```JavaScript
-var myInstance = new WebAssembly.Instance(wasmModule, {})
+var myInstance = new WebAssembly.Instance(myModule, {})
 myInstance.exports.foo()
 ```
 
 Running this code in the console shows... 42 \o/
+
+## What did I learn ?
+
+There were no really hard concept to grab (at least for me, having experience
+with reading datasheet for microcontrolers). The only mistake I made was
+to read the documentation a bit casually in the end, missing the 0x0b footer
+at the end of an expr (I lost about 20 minutes on this :) )
+
+* I now can navigate rather easily in the specification
+* I can read the specification (the grammar)
+* I have a really better understanding of what is WebAssembly
+
+## What is left to do ?
+
+* I still don't know how to return a variable or a string
+* I only took a look at the binary format, not at the specification of the runtime
+* I have no tryed to get JS objects and use them from WebAssembly to see what kind of hack could be done
+* I have not installed a toolchain
+* Making an Elm or Idris compiler would be fun :)
