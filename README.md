@@ -30,11 +30,11 @@ The answer should be in the MDN documentation. The second object in the document
 >    A typed array or ArrayBuffer containing the binary code of the .wasm module you want to compile.
 
 
-Ok, great. Hopefully this ".wasm module" is not tied to browser but is specified by the web assembly thing. Let look at the specification. Use navigator to seach for "module" in the index and we find : https://webassembly.github.io/spec/syntax/modules.html
+Ok, great. Hopefully this ".wasm module" is not tied to browser but is specified by the web assembly thing. Let look at the specification. Use navigator to seach for "module" in the index and we find : https://webassembly.github.io/spec/core/syntax/modules.html
 >WebAssembly programs are organized into modules, which are the unit of deployment, loading, and compilation.
 Ok, this is what we are looking for.
 
-Now how to make one ? Just after the first paragph, there is a block of text starting with `module ::=`. If you are not familiar with the notation, it might be time to read the conventions used in the [specification](https://webassembly.github.io/spec/syntax/conventions.html) and come back, but for now a basic understanding is enough : a module is made of types, funcs, tables, mems... all of which are mandatory and can have one or zero start.
+Now how to make one ? Just after the first paragph, there is a block of text starting with `module ::=`. If you are not familiar with the notation, it might be time to read the conventions used in the [specification](https://webassembly.github.io/spec/core/syntax/conventions.html) and come back, but for now a basic understanding is enough : a module is made of types, funcs, tables, mems... all of which are mandatory and can have one or zero start.
 
 Since we want to start, let's have a look at this `start` :
 >The start component of a module optionally declares the function index of a start function that is automatically invoked when the module is instantiated, after tables and memories have been initialized.
@@ -65,9 +65,9 @@ But remember what we have in the API:
 >A typed array or ArrayBuffer containing the binary code of the .wasm module you want to compile.
 It does not expect a text representation. Searching for "text" in this page gives no result, so I probably need to either have a look at the binary format, or find a tool to convert from text to binary format (which hopefully should be called an Assembler ?)
 
-The second option seems the abvious one. But finding and installing the assembler won't be fun. I will probably need to compile it and, since I boot my computer under Windows this morning, I will probably need to install a toolchain before I can compile the assembler. It seems that for now at least, I will have more fun looking at the [Binary Format](https://webassembly.github.io/spec/binary/index.html).
+The second option seems the abvious one. But finding and installing the assembler won't be fun. I will probably need to compile it and, since I boot my computer under Windows this morning, I will probably need to install a toolchain before I can compile the assembler. It seems that for now at least, I will have more fun looking at the [Binary Format](https://webassembly.github.io/spec/core/binary/index.html).
 
-We will, of course, skip the Conventions sub-chapter, and go directly to the last chapter : "[Modules](https://webassembly.github.io/spec/binary/modules.html)". The short text introduction is interesting : we basically will need to write one "section" for each record of a module, except for the "function" record that is split in two sections. We skip all the Indices part for now, and go to Sections :
+We will, of course, skip the Conventions sub-chapter, and go directly to the last chapter : "[Modules](https://webassembly.github.io/spec/core/binary/modules.html)". The short text introduction is interesting : we basically will need to write one "section" for each record of a module, except for the "function" record that is split in two sections. We skip all the Indices part for now, and go to Sections :
 
 >Each section consists of:
 >* a one-byte section id,
@@ -78,7 +78,7 @@ ok, easy. We then have a table of the section Id's, with a 0 Id-ed "custom" sect
 
 Binary formats often have headers and footers. It is a bit unexpected that we directly ran into the Sections. Looking at the index, we see that the last sub-chapter is about... modules !
 
-The introduction text makes things easy to understand, and using the [binary grammar](https://webassembly.github.io/spec/binary/conventions.html#grammar) we are told how a module is made from bytes !
+The introduction text makes things easy to understand, and using the [binary grammar](https://webassembly.github.io/spec/core/binary/conventions.html#grammar) we are told how a module is made from bytes !
 
 It starts with `0x00 0x61 0x73 0x6D 0x01 0x00 0x00 0x00` (module version 1) and have sections that all can be empty (but still present) and no footer.
 
@@ -98,7 +98,7 @@ and :
 >Productions are written sym::=B1⇒A1 | … | Bn⇒An, where each Ai is the attribute that is synthesized for sym in the given case, usually from attribute variables bound in Bi.
 What does that mean ? That typesec will be made of `section1(vec(functype))` (probably a `section1` containing an array of `functype`) that we will name that we will name `ft*`, and when this data will be loaded, the result will be `ft*`. Why some so complicated notation ? Because some of the data before the arrow might be used only to control the creation of the structure / object (e.g. : size, checksum, define nature of data...) but not be part of the output of parsing the data.
 
-We already hade a look at the specification where it defines [`section1`](https://webassembly.github.io/spec/binary/modules.html#sections) :
+We already hade a look at the specification where it defines [`section1`](https://webassembly.github.io/spec/core/binary/modules.html#sections) :
 ```
 sectionN(B)::=
    N:byte  size:u32  cont:B⇒cont
@@ -160,7 +160,7 @@ From this, we should be able to write the `export`.
 
 The export needs a name (`nm`), which is probably the name under wich the function will be available in the `Instance.prototype.exports` object on the JS side, and the `exportdesc` we just encoded.
 
-Let's see how to encode names in the spec [binary format / values / name](https://webassembly.github.io/spec/binary/values.html#names) :
+Let's see how to encode names in the spec [binary format / values / name](https://webassembly.github.io/spec/core/binary/values.html#names) :
 >Names are encoded as a vector of bytes containing the Unicode UTF-8 encoding of the name’s code point sequence.
 >`name::=b∗:vec(byte)⇒name`
 
@@ -182,7 +182,7 @@ We can decide our function to be named "foo" (`[102,111,111]` in UTF8), which is
 
 Ok, this might work. But we can not test for now because we do not have the function section but we use a funcidx.
 
-You might have noticed that the u32's have been encoded as a single byte instead of the abvious 4. We'll come back to this later, but the spec in [binary format / values / integer](https://webassembly.github.io/spec/binary/values.html#integers) tells us that they are encoded in [LEB128](https://en.wikipedia.org/wiki/LEB128). All you need to know for now is that u32 smaller than 128 will be encoded in just one byte, saving space.
+You might have noticed that the u32's have been encoded as a single byte instead of the abvious 4. We'll come back to this later, but the spec in [binary format / values / integer](https://webassembly.github.io/spec/core/binary/values.html#integers) tells us that they are encoded in [LEB128](https://en.wikipedia.org/wiki/LEB128). All you need to know for now is that u32 smaller than 128 will be encoded in just one byte, saving space.
 
 We can make a simpler exportsec by puting a 0-length vector as the content of the section, dodging the need for the function section for now. I will let you do this as an exercice, but once you add the section to the javascript array we made earlier, you may find this:
 ```JavaScript
@@ -255,14 +255,14 @@ We know what we have to do next :)
 
 ## the Code Section
 
-We know should be able to read the [specification](https://webassembly.github.io/spec/binary/modules.html#code-section) of the code section.
+We know should be able to read the [specification](https://webassembly.github.io/spec/core/binary/modules.html#code-section) of the code section.
 It's a section with number 10, containing a vector of code.
 
 A `code` is the size of a `func` followed by the `func`,
 which is a `vector` of `local`s followed by an `expression`.
 
 Local's are u32 values followed by a valtype, but we may not need locals for now.
-The [structure / modules / function](https://webassembly.github.io/spec/syntax/modules.html#syntax-func)
+The [structure / modules / function](https://webassembly.github.io/spec/core/syntax/modules.html#syntax-func)
 part of the docs tells us that :
 >The locals declare a vector of mutable local variables and their types. These variables are referenced through local indices in the function’s body. The index of the first local is the smallest index not referencing a parameter.
 
@@ -270,7 +270,7 @@ We want to return 42 for now, but it's a constant, we may not need locals yet.
 
 Now we need to write the `expression` part. It's nice how we just have to clicking
 on the word "exp" on the documentation to be presented with the list of
-[numeric expressions](https://webassembly.github.io/spec/binary/instructions.html#binary-expr)
+[numeric expressions](https://webassembly.github.io/spec/core/binary/instructions.html#binary-expr)
 
 We should now read the documentation of every instruction, but we are lucky
 because the first one is 0x41 and defines an i32 constant. 42 is still smaller
